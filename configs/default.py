@@ -5,7 +5,10 @@ class Config:
     # --- Data ---
     pde_nu: float = 0.01          # Burgers' viscosity coefficient
     nx: int = 256                  # spatial resolution (number of grid points). This is our base spatial resolution. The super-resolution test will evaluate at 512 and 1024 — but the model never sees those during training.
+    nx_mid: int = 512               # intermediate resolution
+    nx_super: int = 1024            # finest resolution
     nt: int = 1000                 # number of time steps in the solver
+    nt_super: int = 4000            # time steps in super-rest
     t_end: float = 1.0             # integrate from t=0 to t_end
     n_train_max: int = 2000        # largest training set we'll ever generate
     n_test: int = 200              # held-out test samples (fixed across all runs)
@@ -14,7 +17,9 @@ class Config:
     # --- Training ---
     n_epochs: int = 500
     batch_size: int = 32
-    learning_rate: float = 1e-3
+    learning_rate: float = 3e-4
+    lr_decay_rate: float = 0.5
+    lr_decay_every: int  = 100
     seed: int = 0
 
     # --- FNO architecture ---

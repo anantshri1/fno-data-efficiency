@@ -144,3 +144,62 @@ def load_dataset(path):
     """Load dataset from a compressed numpy archive."""
     data = np.load(path)
     return jnp.array(data['u0']), jnp.array(data['uT'])
+
+def generate_dataset_superres(key, n_samples, cfg):
+    """
+    Generate test data for zero-shot super-resolution evaluation.
+
+    Protocol: sample GRF and solve at nx_super (finest resolution),
+    then subsample down to nx_mid and nx_base. This ensures the same
+    underlying function appears at all three discretisations.
+
+    Args:
+        key      : JAX PRNG key
+        n_samples: number of samples (typically n_test)
+        cfg      : Config instance
+
+    Returns:
+        (u0_base, uT_base) : at nx=256
+        (u0_mid,  uT_mid)  : at nx=512
+        (u0_sup,  uT_sup)  : at nx=1024
+    """
+    # Sample and solve at finest resolution
+    u0_sup = sample_grf(key, nx=cfg.nx_super,
+                        length_scale=cfg.grf_length_scale,
+                        n_samples=n_samples)
+
+    solve_batch = jax.vmap(
+        lambda u: solve_burgers(u, nu=cfg.pde_nu, t_end=cfg.t_end, nt=cfg.nt_super)
+    )
+    uT_sup = solve_batch(u0_sup)
+
+    # Subsample by taking every k-th point along the spatial axis
+    f_mid  = cfg.nx_super // cfg.nx_mid   # = 2
+    f_base = cfg.nx_super // cfg.nx       # = 4
+
+    u0_mid  = u0_sup[:, ::f_mid]
+    uT_mid  = uT_sup[:, ::f_mid]
+    u0_base = u0_sup[:, ::f_base]
+    uT_base = uT_sup[:, ::f_base]
+
+    return (u0_base, uT_base), (u0_mid, uT_mid), (u0_sup, uT_sup)
+
+
+def save_dataset_superres(base, mid, sup, path):
+    """
+    Save all three resolutions into a single compressed archive.
+    Keys: u0_256, uT_256, u0_512, uT_512, u0_1024, uT_1024
+    """
+    (u0_base, uT_base) = base
+    (u0_mid,  uT_mid)  = mid
+    (u0_sup,  uT_sup)  = sup
+
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    np.savez_compressed(
+        path,
+        u0_256=np.array(u0_base),  uT_256=np.array(uT_base),
+        u0_512=np.array(u0_mid),   uT_512=np.array(uT_mid),
+        u0_1024=np.array(u0_sup),  uT_1024=np.array(uT_sup),
+    )
+    print(f"Saved superres dataset ({u0_base.shape[0]} samples, "
+          f"3 resolutions) to {path}")
