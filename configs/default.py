@@ -26,7 +26,10 @@ class Config:
     n_modes: int = 16              # how many Fourier modes to keep, this is the FNO hyperparameter that controls how many Fourier frequencies the spectral layer uses. With nx=256, we have 128 possible modes; we keep only the lowest 16. This is the core truncation that gives FNO its inductive bias.
     n_channels: int = 32           # width of the FNO layers
     n_fno_blocks: int = 4          # depth
+    unet_base_channels: int = 15
 
     # --- Experiment ---
     data_dir: str = "data"
     experiment_name: str = "fno-data-efficiency"
+
+

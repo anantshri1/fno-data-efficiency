@@ -258,12 +258,12 @@ total parameters: 74,209
 
 ```
 Lifting:          2×32 + 32  =      96
-SpectralConv ×4:  4 × (16×32×32) = 65,536   ← complex, but .size counts elements not floats
-Linear ×4:        4 × (32×32+32) =  4,224
-proj1:            32×128+128    =  4,224
-proj2:            128×1+1       =    129
-─────────────────────────────────────────
-Total:                           74,209
+SpectralConv ×4:   4 × 2×(16×32×32) = 131,072   ← w_real + w_imag, both float32
+Linear ×4:         4 × (32×32+32)   =   4,224
+proj1:             32×128+128       =   4,224
+proj2:             128×1+1          =     129
+─────────────────────────────────────────────
+Total:                               ~139,745
 ```
 
 """
