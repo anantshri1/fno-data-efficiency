@@ -50,7 +50,7 @@ class SpectralConv1d(eqx.Module):
         # ---- Step 1: FFT along the spatial axis -----------------
         # rfft exploits real-valued input: output has shape (nx//2 + 1, d_in)
         # Only positive frequences are kept; the negative ones are conjugate
-        # symmetryc and irfft reconstructs them automatically
+        # symmetric and irfft reconstructs them automatically
 
         x_ft = jnp.fft.rfft(x,axis=0)       # (nx//2 + 1, d_in), complex64
 

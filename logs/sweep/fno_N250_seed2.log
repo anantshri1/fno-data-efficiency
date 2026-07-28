@@ -1,0 +1,54 @@
+[fno] training on 250 samples (seed=2)
+[fno] param count: 139,745
+  epoch   0 | train 1.0031 | test 1.0011
+  epoch  10 | train 0.5083 | test 0.4993
+  epoch  20 | train 0.2904 | test 0.3117
+  epoch  30 | train 0.2162 | test 0.2447
+  epoch  40 | train 0.1639 | test 0.2016
+  epoch  50 | train 0.1270 | test 0.1731
+  epoch  60 | train 0.1034 | test 0.1581
+  epoch  70 | train 0.0867 | test 0.1464
+  epoch  80 | train 0.0743 | test 0.1368
+  epoch  90 | train 0.0648 | test 0.1310
+  epoch 100 | train 0.0586 | test 0.1277
+  epoch 110 | train 0.0528 | test 0.1252
+  epoch 120 | train 0.0495 | test 0.1237
+  epoch 130 | train 0.0469 | test 0.1221
+  epoch 140 | train 0.0455 | test 0.1220
+  epoch 150 | train 0.0428 | test 0.1203
+  epoch 160 | train 0.0400 | test 0.1188
+  epoch 170 | train 0.0383 | test 0.1176
+  epoch 180 | train 0.0372 | test 0.1171
+  epoch 190 | train 0.0351 | test 0.1161
+  epoch 200 | train 0.0334 | test 0.1156
+  epoch 210 | train 0.0323 | test 0.1153
+  epoch 220 | train 0.0320 | test 0.1150
+  epoch 230 | train 0.0315 | test 0.1146
+  epoch 240 | train 0.0307 | test 0.1145
+  epoch 250 | train 0.0297 | test 0.1142
+  epoch 260 | train 0.0296 | test 0.1139
+  epoch 270 | train 0.0287 | test 0.1138
+  epoch 280 | train 0.0287 | test 0.1136
+  epoch 290 | train 0.0271 | test 0.1132
+  epoch 300 | train 0.0267 | test 0.1130
+  epoch 310 | train 0.0262 | test 0.1131
+  epoch 320 | train 0.0258 | test 0.1130
+  epoch 330 | train 0.0260 | test 0.1128
+  epoch 340 | train 0.0259 | test 0.1127
+  epoch 350 | train 0.0252 | test 0.1126
+  epoch 360 | train 0.0253 | test 0.1125
+  epoch 370 | train 0.0248 | test 0.1124
+  epoch 380 | train 0.0245 | test 0.1123
+  epoch 390 | train 0.0246 | test 0.1122
+  epoch 400 | train 0.0240 | test 0.1121
+  epoch 410 | train 0.0241 | test 0.1120
+  epoch 420 | train 0.0240 | test 0.1120
+  epoch 430 | train 0.0236 | test 0.1119
+  epoch 440 | train 0.0234 | test 0.1120
+  epoch 450 | train 0.0235 | test 0.1118
+  epoch 460 | train 0.0234 | test 0.1118
+  epoch 470 | train 0.0231 | test 0.1118
+  epoch 480 | train 0.0229 | test 0.1117
+  epoch 490 | train 0.0227 | test 0.1117
+  done. final test rel-L2: 0.1116
+  checkpoint: checkpoints/fno_N250_seed2_final.eqx

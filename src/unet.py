@@ -276,6 +276,9 @@ class UNet(eqx.Module):
 
         return self.out_proj(x).squeeze(0)                # (nx,)
 
+"""
+Diagnostics
+```python
 import sys; sys.path.insert(0, ".")
 import jax, jax.numpy as jnp
 from src.unet import UNet
@@ -285,3 +288,5 @@ model = UNet(base_channels=15, key=jax.random.PRNGKey(0))
 out = model(jax.random.normal(jax.random.PRNGKey(1), (256,)))
 print("shape:", out.shape, "| finite:", jnp.all(jnp.isfinite(out)).item())
 print("params:", count_params(model))     # expect ~150k
+```
+"""

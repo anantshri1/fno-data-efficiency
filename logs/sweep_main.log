@@ -1,0 +1,122 @@
+[skip] checkpoints/fno_N100_seed0_final.eqx already exists
+[run] fno N=100 seed=1 -> logs/sweep/fno_N100_seed1.log
+  done in 47s
+[run] fno N=100 seed=2 -> logs/sweep/fno_N100_seed2.log
+  done in 43s
+[run] fno N=100 seed=3 -> logs/sweep/fno_N100_seed3.log
+  done in 42s
+[run] fno N=100 seed=4 -> logs/sweep/fno_N100_seed4.log
+  done in 42s
+[skip] checkpoints/unet_N100_seed0_final.eqx already exists
+[run] unet N=100 seed=1 -> logs/sweep/unet_N100_seed1.log
+  done in 41s
+[run] unet N=100 seed=2 -> logs/sweep/unet_N100_seed2.log
+  done in 41s
+[run] unet N=100 seed=3 -> logs/sweep/unet_N100_seed3.log
+  done in 41s
+[run] unet N=100 seed=4 -> logs/sweep/unet_N100_seed4.log
+  done in 41s
+[run] fno N=250 seed=0 -> logs/sweep/fno_N250_seed0.log
+  done in 93s
+[run] fno N=250 seed=1 -> logs/sweep/fno_N250_seed1.log
+  done in 90s
+[run] fno N=250 seed=2 -> logs/sweep/fno_N250_seed2.log
+  done in 88s
+[run] fno N=250 seed=3 -> logs/sweep/fno_N250_seed3.log
+  done in 92s
+[run] fno N=250 seed=4 -> logs/sweep/fno_N250_seed4.log
+  done in 91s
+[run] unet N=250 seed=0 -> logs/sweep/unet_N250_seed0.log
+  done in 109s
+[run] unet N=250 seed=1 -> logs/sweep/unet_N250_seed1.log
+  done in 110s
+[run] unet N=250 seed=2 -> logs/sweep/unet_N250_seed2.log
+  done in 109s
+[run] unet N=250 seed=3 -> logs/sweep/unet_N250_seed3.log
+  done in 105s
+[run] unet N=250 seed=4 -> logs/sweep/unet_N250_seed4.log
+  done in 2752s
+[run] fno N=500 seed=0 -> logs/sweep/fno_N500_seed0.log
+  done in 158s
+[run] fno N=500 seed=1 -> logs/sweep/fno_N500_seed1.log
+  done in 169s
+[run] fno N=500 seed=2 -> logs/sweep/fno_N500_seed2.log
+  done in 156s
+[run] fno N=500 seed=3 -> logs/sweep/fno_N500_seed3.log
+  done in 174s
+[run] fno N=500 seed=4 -> logs/sweep/fno_N500_seed4.log
+  done in 159s
+[run] unet N=500 seed=0 -> logs/sweep/unet_N500_seed0.log
+  done in 195s
+[run] unet N=500 seed=1 -> logs/sweep/unet_N500_seed1.log
+  done in 205s
+[run] unet N=500 seed=2 -> logs/sweep/unet_N500_seed2.log
+  done in 229s
+[run] unet N=500 seed=3 -> logs/sweep/unet_N500_seed3.log
+  done in 233s
+[run] unet N=500 seed=4 -> logs/sweep/unet_N500_seed4.log
+  done in 202s
+[run] fno N=1000 seed=0 -> logs/sweep/fno_N1000_seed0.log
+  done in 301s
+[run] fno N=1000 seed=1 -> logs/sweep/fno_N1000_seed1.log
+  done in 301s
+[run] fno N=1000 seed=2 -> logs/sweep/fno_N1000_seed2.log
+  done in 298s
+[run] fno N=1000 seed=3 -> logs/sweep/fno_N1000_seed3.log
+  done in 291s
+[run] fno N=1000 seed=4 -> logs/sweep/fno_N1000_seed4.log
+  done in 290s
+[run] unet N=1000 seed=0 -> logs/sweep/unet_N1000_seed0.log
+  done in 369s
+[run] unet N=1000 seed=1 -> logs/sweep/unet_N1000_seed1.log
+  done in 347s
+[run] unet N=1000 seed=2 -> logs/sweep/unet_N1000_seed2.log
+  done in 396s
+[run] unet N=1000 seed=3 -> logs/sweep/unet_N1000_seed3.log
+  done in 417s
+[run] unet N=1000 seed=4 -> logs/sweep/unet_N1000_seed4.log
+  done in 408s
+[run] fno N=1500 seed=0 -> logs/sweep/fno_N1500_seed0.log
+  done in 483s
+[run] fno N=1500 seed=1 -> logs/sweep/fno_N1500_seed1.log
+  done in 502s
+[run] fno N=1500 seed=2 -> logs/sweep/fno_N1500_seed2.log
+  done in 526s
+[run] fno N=1500 seed=3 -> logs/sweep/fno_N1500_seed3.log
+  done in 542s
+[run] fno N=1500 seed=4 -> logs/sweep/fno_N1500_seed4.log
+  done in 544s
+[run] unet N=1500 seed=0 -> logs/sweep/unet_N1500_seed0.log
+  done in 646s
+[run] unet N=1500 seed=1 -> logs/sweep/unet_N1500_seed1.log
+  done in 621s
+[run] unet N=1500 seed=2 -> logs/sweep/unet_N1500_seed2.log
+  done in 589s
+[run] unet N=1500 seed=3 -> logs/sweep/unet_N1500_seed3.log
+  done in 661s
+[run] unet N=1500 seed=4 -> logs/sweep/unet_N1500_seed4.log
+  done in 559s
+[skip] checkpoints/fno_N2000_seed0_final.eqx already exists
+[run] fno N=2000 seed=1 -> logs/sweep/fno_N2000_seed1.log
+  done in 634s
+[run] fno N=2000 seed=2 -> logs/sweep/fno_N2000_seed2.log
+  done in 642s
+[run] fno N=2000 seed=3 -> logs/sweep/fno_N2000_seed3.log
+  done in 637s
+[run] fno N=2000 seed=4 -> logs/sweep/fno_N2000_seed4.log
+  done in 619s
+[skip] checkpoints/unet_N2000_seed0_final.eqx already exists
+[run] unet N=2000 seed=1 -> logs/sweep/unet_N2000_seed1.log
+  done in 764s
+[run] unet N=2000 seed=2 -> logs/sweep/unet_N2000_seed2.log
+  done in 838s
+[run] unet N=2000 seed=3 -> logs/sweep/unet_N2000_seed3.log
+  done in 931s
+[run] unet N=2000 seed=4 -> logs/sweep/unet_N2000_seed4.log
+  done in 776s
+
+==================================================
+sweep complete: 60 configs
+  success: 56
+  skipped: 4
+  failed:  0

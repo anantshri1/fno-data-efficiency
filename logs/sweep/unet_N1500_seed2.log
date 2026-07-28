@@ -1,0 +1,54 @@
+[unet] training on 1500 samples (seed=2)
+[unet] param count: 149,641
+  epoch   0 | train 0.6447 | test 0.4465
+  epoch  10 | train 0.2264 | test 0.2435
+  epoch  20 | train 0.1737 | test 0.1786
+  epoch  30 | train 0.1333 | test 0.1483
+  epoch  40 | train 0.1350 | test 0.1436
+  epoch  50 | train 0.1182 | test 0.1483
+  epoch  60 | train 0.1201 | test 0.1406
+  epoch  70 | train 0.1040 | test 0.1237
+  epoch  80 | train 0.0839 | test 0.1075
+  epoch  90 | train 0.0892 | test 0.1106
+  epoch 100 | train 0.0753 | test 0.1025
+  epoch 110 | train 0.0637 | test 0.1022
+  epoch 120 | train 0.0646 | test 0.1017
+  epoch 130 | train 0.0628 | test 0.1042
+  epoch 140 | train 0.0596 | test 0.0999
+  epoch 150 | train 0.0539 | test 0.0971
+  epoch 160 | train 0.0577 | test 0.1003
+  epoch 170 | train 0.0531 | test 0.0944
+  epoch 180 | train 0.0521 | test 0.0935
+  epoch 190 | train 0.0542 | test 0.0972
+  epoch 200 | train 0.0463 | test 0.0897
+  epoch 210 | train 0.0377 | test 0.0881
+  epoch 220 | train 0.0384 | test 0.0890
+  epoch 230 | train 0.0385 | test 0.0874
+  epoch 240 | train 0.0386 | test 0.0877
+  epoch 250 | train 0.0379 | test 0.0870
+  epoch 260 | train 0.0368 | test 0.0874
+  epoch 270 | train 0.0356 | test 0.0893
+  epoch 280 | train 0.0355 | test 0.0862
+  epoch 290 | train 0.0351 | test 0.0879
+  epoch 300 | train 0.0315 | test 0.0855
+  epoch 310 | train 0.0294 | test 0.0849
+  epoch 320 | train 0.0297 | test 0.0853
+  epoch 330 | train 0.0288 | test 0.0843
+  epoch 340 | train 0.0290 | test 0.0848
+  epoch 350 | train 0.0292 | test 0.0847
+  epoch 360 | train 0.0283 | test 0.0846
+  epoch 370 | train 0.0291 | test 0.0850
+  epoch 380 | train 0.0282 | test 0.0842
+  epoch 390 | train 0.0282 | test 0.0846
+  epoch 400 | train 0.0268 | test 0.0845
+  epoch 410 | train 0.0255 | test 0.0838
+  epoch 420 | train 0.0255 | test 0.0837
+  epoch 430 | train 0.0255 | test 0.0837
+  epoch 440 | train 0.0253 | test 0.0833
+  epoch 450 | train 0.0252 | test 0.0839
+  epoch 460 | train 0.0250 | test 0.0833
+  epoch 470 | train 0.0254 | test 0.0838
+  epoch 480 | train 0.0245 | test 0.0833
+  epoch 490 | train 0.0244 | test 0.0834
+  done. final test rel-L2: 0.0831
+  checkpoint: checkpoints/unet_N1500_seed2_final.eqx

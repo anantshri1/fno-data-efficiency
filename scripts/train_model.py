@@ -13,6 +13,17 @@ from src.data_gen import load_dataset
 from src.fno import FNO
 from src.unet import UNet
 from src.utils import count_params
+import subprocess
+
+def git_commit() -> str:
+    """Short SHA of HEAD, plus a dirty marker for uncommitted changes."""
+    try:
+        sha = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"], text=True).strip()
+        dirty = subprocess.call(["git", "diff", "--quiet"]) != 0
+        return f"{sha}-dirty" if dirty else sha
+    except Exception:
+        return "unknown"
 
 def normalize(x, mean, std):
     return (x-mean)/std
@@ -110,6 +121,8 @@ def train(cfg: Config, model_type: str, n_train: int = None) -> eqx.Module:
             "n_fno_blocks": cfg.n_fno_blocks,
             "unet_base_channels": cfg.unet_base_channels,
             "lr":           cfg.learning_rate,
+            "git_commit":   git_commit(),
+            "lr_decay_rate": cfg.lr_decay_rate,
             "batch_size":   cfg.batch_size,
             "n_epochs":     cfg.n_epochs,
         })
@@ -156,10 +169,14 @@ if __name__ == "__main__":
                         help="Training set size. Defaults to cfg.n_train_max (2000).")
     parser.add_argument("--seed", type=int, default=None,
                         help="Random seed. Overrides cfg.seed if provided.")
+    parser.add_argument("--lr_decay_rate", type=float, default=None,
+                        help="Overrides cfg.lr_decay_rate. Use 1.0 to disable decay.")
     args = parser.parse_args()
 
     cfg = Config()
     if args.seed is not None:
         cfg.seed = args.seed
+    if args.lr_decay_rate is not None:
+        cfg.lr_decay_rate = args.lr_decay_rate
 
     train(cfg, model_type=args.model, n_train=args.n_train)
