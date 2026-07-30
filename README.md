@@ -1,3 +1,89 @@
+# PDE Solvers based on Spectral Neural Operators 
+
+A data efficiency study benchmarking the performance of Fourier Neural Operators (FNOs) against that of U-Nets for learning the solution operator for the **1-dimensional Burgers' Equation**: $\frac{\partial u}{\partial t} + u \frac{\partial u}{\partial x} = \nu \frac{\partial^2 u}{\partial x^2}$, for a given coefficient of viscosity $\nu$.
+
+> Burgers' equation is a fundamental diffusion-convection equation and is the prototype for studying systems that display discontinuities (shock waves). The viscous Burgers' equation can be converted to a linear equation via a Cole-Hopf transformation: $u(x,t) = -2\nu \frac{\partial }{\partial x}ln(\phi(x,t))$, which turns it into the equation: $2\nu \frac{\partial}{\partial x}\bigg[\frac{1}{\phi}\bigg(\frac{\partial \phi}{\partial t} - \nu \frac{\partial^2 \phi}{\partial x^2} \bigg) \bigg] = 0$. This can be integrated with respect to $x$: $\frac{\partial\phi}{\partial t} - \nu \frac{\partial^2\phi}{\partial x^2} = \phi\frac{df(t)}{dt}$, where $\dot{f}$ is a function of time. Introducing the transformation $\phi \to \phi e^f$, the equation reduces to the heat equation: $\frac{\partial \phi}{\partial t} = \nu \frac{\partial^2\phi}{\partial x^2}$. The diffusion equation can be solved at this stage: $u(x,t) = -2\nu \frac{\partial}{\partial x}ln\bigg[\int_{-\infty}^{+\infty}\, exp\bigg(-\frac{(x-x')^2}{4\nu t} - \frac{1}{2\nu}\int_0^{x'}f(x'')dx'' \bigg)dx' \bigg]$.
+
+The project runs in a Python virtual environment. `JAX` is installed in CPU-only mode for development (`jax[cpu]`). The dependency set is intentionally minimal:
+* `JAX` and `Equinox` cover the model and all numerical operations. 
+* `Optax` covers optimization.
+* `MLflow` covers experiment tracking.
+* `Matplotlib` covers visualization. 
+
+No higher-level neural operator libraries are used for the model itself; the entire FNO implementation is built from primitives. This is a deliberate choice for two reasons: it demonstrates implementation literacy, and it gives full control over architectural details that matter for the ablation studies.
+
+---
+## Data Generation and Basic Configuration 
+
+### A Primer on Gaussian Random Fields
+The initial conditions for Burgers' equation are sampled from a *Gaussian Random Field*. A Gaussian Random Field is a probability distribution over functions. When you sample from it, you get a random function defined on your spatial domain. The key property we need is that the sampled functions are **smooth** (no discontinuities, no spikes) and statistically homogeneous (the statistical properties do not depend on position). Both properties follow from how we define the field in Fourier space.
+
+For a periodic domain of length 1 with `nx` grid points, any function can be written as a sum of Fourier modes with wavenumbers `k = 0, 1, 2, ..., nx/2`. The wavenumber `k` tells you how many full oscillations the corresponding mode completes across the domain. `k=0` is the mean, `k=1` is one full oscillation, `k=16` is sixteen oscillations, and so on.
+
+To sample a smooth random function, we work directly in Fourier space. We draw complex Gaussian noise independently at each wavenumber, then scale the noise at each wavenumber by a weight that depends on `k`. If we want smooth functions, we make the weights decay with `k`; high-wavenumber components (fast oscillations) are suppressed, low-wavenumber components (slow oscillations) dominate. The result in physical space is a smooth, random, spatially correlated function.
+
+The specific power spectrum we use is a Gaussian decay: `weight(k) = exp(-0.5 * (length_scale * k)^2)`. The `length_scale` parameter controls how aggressively high modes are suppressed. With `length_scale=0.2`, modes above roughly `k=10` are suppressed by more than one standard deviation, giving functions whose dominant variation occurs over spatial scales larger than about 0.1 times the domain. This is smooth enough to be well-resolved at `nx=256` but complex enough that predicting the solution at time `T` is nontrivial.
+
+After sampling in Fourier space, we apply an inverse real FFT (`irfft`) to get the physical-space function. This is guaranteed to produce a real-valued output because we never explicitly set the negative-frequency components: `irfft` enforces conjugate symmetry automatically. Each sample is then normalized to zero mean and unit standard deviation so that the scale of the initial conditions does not vary across samples. This normalization is purely for numerical convenience and has no effect on the physics.
+
+The GRF approach is standard in the neural operator literature precisely because it gives independent, identically distributed initial conditions with controllable smoothness. Using fixed analytical initial conditions (sinusoids, step functions) would bias the results toward models that happen to fit those specific shapes. The GRF ensures that what we measure is genuine operator learning, not pattern matching to a specific IC family.
+
+### The Burgers' Solver
+Burgers equation is: $\frac{\partial u}{\partial t} + u \frac{\partial u}{\partial x} = \nu \frac{\partial^2 u}{\partial x^2}$. The left side is a nonlinear advection term; the right side is linear diffusion. At small viscosity ($\nu=0.01$ in this project), the nonlinear term dominates in smooth regions and causes characteristics to converge, steepening gradients until the diffusion term balances them. The result is shock-like structures: **regions of very sharp gradient that are not true discontinuities (the viscosity prevents that) but are numerically challenging**.
+
+We solve this with a pseudo-spectral method using an integrating factor, sometimes called *ETDRK1 (Exponential Time Differencing Runge-Kutta, first order)*. The key insight is that the linear diffusion term, in Fourier space, becomes a simple multiplication: the Fourier coefficient at wavenumber `k` evolves as $\frac{d\hat{u}(k)}{dt} = -\nu k^2 \hat{u}(k)$ from the diffusion term alone. This ODE has an exact solution: $\hat{u}(k, t+dt) = e^{-\nu k^2 d}\hat{u}(k,t)$. We can therefore handle the diffusion term without any time-discretization error by multiplying by this integrating factor at each step.
+
+The nonlinear term $u\frac{\partial u}{\partial x}$ is handled explicitly in physical space. In Fourier space, spatial differentiation is multiplication by $ik$, so $\frac{\partial u}{\partial x}$ transforms to $ik \hat{u}(k)$. The product $u\frac{\partial u}{\partial x}$ is computed by transforming back to physical space, forming the product there, then transforming back. An equivalent and slightly more stable form is to write $u\frac{\partial u}{\partial x} = \frac{1}{2}\frac{\partial u^2}{\partial x}$, which in Fourier space is $ik FFT(\frac{u^2}{2})$.
+
+One full step of the solver is: 
+* transform $u$ to Fourier space,
+* compute the nonlinear term as described,
+* take an explicit Euler step in Fourier space combining the nonlinear term with the integrating factor,
+* transform back to physical space. 
+
+This is first-order accurate in time, which is sufficient here because we use a small enough time step (`nt=1000` steps for `t_end=1.0`, giving `dt=0.001`).
+
+The solver is implemented using `jax.lax.scan` rather than a Python for-loop. This is a JAX-specific choice with significant practical consequences. A Python loop over `nt=1000` steps would be unrolled by JAX's `JIT` compiler into a computation graph with 1000 copies of the step function, which takes a long time to compile and produces a very large graph. `jax.lax.scan` compiles the loop as a single recurrent operation, reducing compile time from minutes to seconds and keeping memory usage constant in the number of steps. The tradeoff is that scan requires the loop body to have a fixed signature (`carry, input -> carry, output`) and cannot depend on dynamic values computed during the loop. Our solver satisfies this naturally.
+
+The full configuration used for the rest of the project is shown below:
+
+```python
+    pde_nu: float = 0.01          # Burgers' viscosity coefficient
+    nx: int = 256                  # spatial resolution (number of grid points). This is our base spatial resolution. The super-resolution test will evaluate at 512 and 1024 — but the model never sees those during training.
+    nx_mid: int = 512               # intermediate resolution
+    nx_super: int = 1024            # finest resolution
+    nt: int = 1000                 # number of time steps in the solver
+    nt_super: int = 4000            # time steps in super-rest
+    t_end: float = 1.0             # integrate from t=0 to t_end
+    n_train_max: int = 2000        # largest training set we'll ever generate
+    n_test: int = 200              # held-out test samples (fixed across all runs)
+    grf_length_scale: float = 0.2  # controls smoothness of initial conditions: how "wiggly" the initial conditions are — smaller = more high-frequency content = harder problem.
+ 
+    # --- Training ---
+    n_epochs: int = 500
+    batch_size: int = 32
+    learning_rate: float = 3e-4
+    lr_decay_rate: float = 0.5
+    lr_decay_every: int  = 100
+    seed: int = 0
+ 
+    # --- FNO architecture ---
+    n_modes: int = 16              # how many Fourier modes to keep, this is the FNO hyperparameter that controls how many Fourier frequencies the spectral layer uses. With nx=256, we have 128 possible modes; we keep only the lowest 16. This is the core truncation that gives FNO its inductive bias.
+    n_channels: int = 32           # width of the FNO layers
+    n_fno_blocks: int = 4          # depth
+    unet_base_channels: int = 15
+```
+
+> A critical fix was applied here: the original data generation script saved only `nx=256` data. This is insufficient for the zero-shot super-resolution test, which requires evaluating the trained model on the same initial conditions at finer grids. If we were to generate fresh GRFs at `nx=1024` later, we would be testing on different functions, which is not the experiment.
+>
+> The correct protocol is to generate and solve at the finest resolution (`nx=1024`), then subsample down to 512 and 256 by taking every 4th and every 2nd spatial point respectively. This guarantees the same underlying function appears at all three discretisations.
+>
+> The subsampling by striding (taking every k-th point) is valid here because the GRF length scale ensures the functions have no energy above the `nx=256` Nyquist frequency. There is nothing to alias. For rougher fields this would require an explicit low-pass filter before subsampling.
+
+> The other consideration is CFL stability. The **Courant-Friedrichs-Lewy** condition requires that the numerical wave speed times $\frac{dt}{dx}$ must be below a threshold for explicit time-stepping schemes to remain stable. Since `dx = 1/nx`, and we need `dt*max_speed/dx` to be bounded, increasing `nx` by a factor of 4 requires increasing `nt` by the same factor. We set `nt_super=4000` for `nx_super=1024` to satisfy this. Failing to scale `nt` with `nx` would produce a solver that appears to run but generates physically wrong solutions, which would silently corrupt the super-resolution evaluation.
+
+---
+
 <img width="800" height="644" alt="image" src="https://github.com/user-attachments/assets/226b2e7d-6c32-4b2a-a326-fcb8f10c9de8" />
 
 U-net
@@ -6,8 +92,8 @@ U-net
 
 <img width="800" height="444" alt="image" src="https://github.com/user-attachments/assets/1fa04e29-0d03-4f75-8cea-6d4e0b64af4e" />
 
-
-# **References**
+---
+## **References**
 * https://arxiv.org/pdf/2205.10573
 * https://arxiv.org/pdf/2404.07200v1
 * https://people.esam.northwestern.edu/~chopp/course_notes/446-2.pdf
