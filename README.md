@@ -381,10 +381,17 @@ The resulting plot shows both curves on a log scale against Fourier mode k, with
 
 ### Floor baseline
 Two trivial predictors, evaluated on the same test set, same metric (relative_l2), same normalized-space convention as everything else:
-* Identity: predict `uT = u0`. Tells you how much the PDE actually changes the signal.
-* Linear operator via least-squares: fit `uT ≈ A @ u0` for a single global matrix `A (nx×nx)`, no nonlinearity, via lstsq on the training set. This tells you how much of the task is linear — Burgers' is nonlinear (the u u_x term), so this should do better than identity but still notably worse than FNO/U-Net. If it does almost as well as FNO, that would undercut the "nonlinear structure matters" story and be worth knowing now rather than after the writeup is drafted.
-### Timing benchmarks
+* Identity: predict `uT = u0`. This tells you how much the PDE actually changes the signal.
+* Linear operator via least-squares: fit `uT ≈ A @ u0` for a single global matrix `A (nx×nx)`, no nonlinearity, via lstsq on the training set. This tells you how much of the task is linear — Burgers' is nonlinear, so this should do better than identity but still notably worse than FNO/U-Net.
 
+The results were:
+* `identity baseline (uT = u0): rel-L2 = 1.0454`. This is notable because it is slightly above 1.0, the level associated with an essentially uncorrelated, uninformative predictor in this normalized-space metric. This says input and output are close to decorrelated by t=1.0 under nu=0.01, i.e. Burgers' advection substantially reshapes the field over the integration window rather than making a small perturbation to it, confirming this is a genuinely hard, non-trivial learning problem rather than a near-identity map.
+* `linear operator (least-squares fit): rel-L2 = 0.6966`. This isolates how much of the task is linear: fitting the best possible linear map only recovers a modest fraction of the accuracy achieved by nonlinear models, confirming that the nonlinear term in Burgers' equation is doing real work that a linear surrogate cannot capture.
+
+### Timing benchmarks
+Wall-clock time per single sample was measured for the finite-difference Burgers' solver (`src/data_gen.py`, run at the same `nt=1000` configuration used to generate the training data, so this is a fair comparison against the actual solver quality used throughout the project) against FNO inference (using `eqx.filter_jit`, with an explicit warmup call before timing to exclude one-time JIT compilation cost from the measurement, and `jax.block_until_ready` after each call to force synchronization so JAX's asynchronous dispatch does not cause under-counting). 
+
+Result: the FD solver took 38.011 milliseconds per sample; FNO inference took 0.327 milliseconds per sample; a speedup of 116.3 times, run entirely on CPU hardware. 
 
 ---
 ## **References**
