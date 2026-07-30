@@ -395,18 +395,20 @@ Result: the FD solver took 38.011 milliseconds per sample; FNO inference took 0.
 
 ---
 ## **References**
-* https://arxiv.org/pdf/2205.10573
-* https://arxiv.org/pdf/2404.07200v1
-* https://people.esam.northwestern.edu/~chopp/course_notes/446-2.pdf
-* https://arxiv.org/pdf/2303.10528
-* https://neuraloperator.github.io/dev/theory_guide/fno.html
-* https://arxiv.org/pdf/2108.08481
-* https://arxiv.org/pdf/2505.11766v1
-* https://www.youtube.com/watch?v=COEItKEZ-is
-* https://arxiv.org/pdf/2111.00254
-* https://arxiv.org/pdf/2010.08895
-* https://arxiv.org/pdf/2502.06895
-* https://arxiv.org/pdf/1505.04597
-* https://www.geeksforgeeks.org/machine-learning/u-net-architecture-explained/
-* https://arxiv.org/pdf/2512.01421 (GOAT)
-* https://www.physicsx.ai/newsroom/how-a-fourier-neural-operator-learns-to-solve-pdes----and-where-it-falls-short
+* **Spectral Neural Operators**, V. Fanaskov, I. Oseledets. (2022). [arXiv: 2205.10573](https://arxiv.org/abs/2205.10573).
+* **Toward a Better Understanding of Fourier Neural Operators: Analysis and Improvement from a Spectral Perspective**, Shaoxiang Qin, Fuyuan Lyu, Wenhui Peng, Dingyang Geng, Ju Wang, Naiping Gao, Xue Liu, Liangzhu Leon Wang. (2024). [arXiv: 2404.07200](https://arxiv.org/abs/2404.07200v1).
+* **Fourier Neural Operators Explained: A Practical Perspective**, Valentin Duruisseaux, Jean Kossaifi, Anima Anandkumar. (2024). [arXiv: 2512.01421](https://arxiv.org/abs/2512.01421).
+* **Spectral Methods for Partial Differential Equations**, David Chopp. (2008). [Notes](https://people.esam.northwestern.edu/~chopp/course_notes/446-2.pdf).
+* **LNO: Laplace Neural Operator for Solving Differential Equations**, Qianying Cao, Somdatta Goswami, George Em Karniadakis. (2023). [arXiv: 2303.10528](https://arxiv.org/abs/2303.10528).
+* **A Library for Learning Neural Operators**, Jean Kossaifi, Nikola Kovachki, Zongyi Li, David Pitt, Miguel Liu-Schiaffini, Robert Joseph George, Boris Bonev, Kamyar Azizzadenesheli, Julius Berner, Valentin Duruisseaux, Anima Anandkumar. (2024). [arXiv: 2412.10354](https://arxiv.org/abs/2412.10354).
+* **Neural Operator: Learning Maps Between Function Spaces**, Nikola Kovachki, Zongyi Li, Burigede Liu, Kamyar Azizzadenesheli, Kaushik Bhattacharya, Andrew Stuart, Anima Anandkumar. (2021). [arXiv: 2108.08481](https://arxiv.org/abs/2108.08481).
+* **Redefining Neural Operators in d+1 Dimensions**, Haoze Song, Zhihao Li, Xiaobo Zhang, Zecheng Gan, Zhilu Lai, Wei Wang. (2025). [arXiv: 2505.11766v1](https://arxiv.org/abs/2505.11766v1).
+* **Equinox: neural networks in JAX via callable PyTrees and filtered transformations**, Patrick Kidger, Cristian Garcia. (2021). [arXiv: 2111.00254](https://arxiv.org/abs/2111.00254).
+* **Neural Operators: FNO and DeepONet**. [Watch here](https://www.youtube.com/watch?v=COEItKEZ-is).
+* **U-net clearly explained**. [Watch here](https://www.youtube.com/watch?v=oxcgx75k6yU).
+* **Fourier Neural Operator for Parametric Partial Differential Equations**, Zongyi Li, Nikola Kovachki, Kamyar Azizzadenesheli, Burigede Liu, Kaushik Bhattacharya, Andrew Stuart, Anima Anandkumar. (2020). [arXiv: 2010.08895](https://arxiv.org/abs/2010.08895).
+* **A Comprehensive Review of U-Net and Its Variants: Advances and Applications in Medical Image Segmentation**, Wang Jiangtao, Nur Intan Raihana Ruhaiyem, Fu Panpan. (2025). [arXiv: 2502.06895](https://arxiv.org/abs/2502.06895).
+* **U-Net: Convolutional Networks for Biomedical Image Segmentation**,  Olaf Ronneberger, Philipp Fischer, Thomas Brox. (2015). [arXiv: 1505.04597](https://arxiv.org/abs/1505.04597).
+* **U-Net Architecture Explained** [here](https://www.geeksforgeeks.org/machine-learning/u-net-architecture-explained/).
+* **How a Fourier Neural Operator Learns to Solve PDEs — and Where It Falls Short**, Gurpreet Singh Hora, Prakhar Kapoor, Albert Matveev. (2026). [Here](https://www.physicsx.ai/newsroom/how-a-fourier-neural-operator-learns-to-solve-pdes----and-where-it-falls-short).
+
