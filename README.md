@@ -231,7 +231,88 @@ The corrected architecture trained to 0.0716 at N=2000, with train at 0.023. **T
 ---
 ## Benchmarking FNO and U-Net performance
 
+### Infrastructure
+The sweep script runs each of the 60 grid configurations as a separate subprocess rather than in a loop within a single Python process. The alternative was to import the training function and call it 60 times in-process. The subprocess approach was chosen for two reasons:
+* First, each run gets a clean `JAX` and `XLA` state, including a fresh `JIT` compilation cache with no residue from prior runs.
+* Second, a crash in one run cannot affect the other 59, because each process is isolated. The cost is Python interpreter startup overhead per run, which is negligible against 500 training epochs.
+
+The skip logic checks whether the final checkpoint file for a given configuration already exists and skips it if so. This makes the sweep resumable: if a Colab tunnel disconnects or a machine sleeps, rerunning the script picks up where it left off. The script also accepts a `--dry_run` flag that prints the planned commands without executing them, useful for verifying the grid before committing CPU time, and a `--force` flag that ignores existing checkpoints and re-runs everything.
+
+Per-run `stdout` and `stderr` are redirected to individual log files under `logs/sweep/`, one per configuration. Failed runs are logged and skipped rather than aborting the sweep. The outer summary at the end of the script reports success, skipped, and failed counts with paths to any failure logs.
+
+For unattended execution the recommended invocation is: `mkdir -p logs/sweep && nohup python -u -m scripts.sweep > logs/sweep_main.log 2>&1 &`. The `-u` flag forces unbuffered output so that tail `-f` on the log file shows progress in real time rather than dumping in blocks.
+
+The sweep ran on local CPU. Wall time for the full 60-run grid was approximately 4 hours.
+
+### Analysis Pipeline
+The analysis script pulls results from MLflow and applies several filters and transformations before producing any output.
+* The `load` step queries the MLflow experiment by name and casts the string-typed parameter columns to their correct types. The filter requires `model_type` to be either `"fno"` or `"unet"`, `n_train` to be in the N grid, and seed to be in 0 through 4. This excludes the earlier reference run (which was logged by a script that never records `model_type` and therefore has a null in that column), the LR-decay control run (seed 999, outside the seed range), and any other exploratory runs that happened to share in-grid N and seed values.
+* The `deduplication` step keeps the most recent run per `(model_type, n_train, seed)` triplet, sorting by `start_time`. 
+* The `summarize` step aggregates over seeds within each cell, computing mean, standard deviation, and count of both test and train relative L2 error. A gap column is added as test mean minus train mean.
+* The `audit` step prints all distinct `n_params` values per model after deduplication. This is the sharpest provenance check: the FNO must show exactly 139745 and the U-Net must show exactly 149641. Any other value in either group means a run from a different architecture survived deduplication and is corrupting the analysis.
+* The `n_for_target_error` function implements log-log linear interpolation. Given a target error value and a model, it finds the two adjacent grid points that bracket the target, fits a straight line in log-log space, and solves for the N value where the line crosses the target. The assumption is that error follows a local power law, error approximately equal to A times N to the power negative alpha, with alpha constant inside the interval. The function explicitly refuses to extrapolate: if the target error falls outside the model's observed range it raises an error rather than guessing. Values should be quoted with limited precision — approximately 300 and approximately 1250, not 307 and 1254, since the latter implies measurement precision that is not present in an interpolated estimate.
+* The `bootstrap` estimates a confidence interval on the multiplier. It resamples the five seed values within each (model, N) cell independently with replacement, rebuilds the full mean curve for both models from the resampled values, re-interpolates both crossing points, and computes their ratio. This is repeated 2000 times. The 2.5th and 97th percentiles of the resulting distribution are the 95% confidence interval. Resampled curves occasionally become non-monotonic or fail to bracket the target, in which case that sample is skipped. The function reports how many samples were skipped out of how many attempted. The confidence interval covers seed variance only — it says nothing about data-draw variance, epoch-budget choices, or target-error selection. With only five seeds the bootstrap is coarse, and the interval should be described as five-seed bootstrap rather than implying asymptotic coverage guarantees.
+
+### Debugging Duplicate Runs
+When the analysis was first run it pulled 121 runs for 60 grid cells. The summary showed most cells had ten seeds rather than five, and two cells had anomalous counts: FNO at N=100 had exactly five while everything else had ten, and U-Net at N=100 had six. The U-Net N=2000 cell had a standard deviation of 0.139 on a mean of 0.066, where every other cell had standard deviations in the range 0.001 to 0.010.
+
+The diagnosis function revealed that nearly every configuration had two MLflow runs with identical metrics, start times roughly 40 to 90 seconds apart, in a consistent interleaved pattern across the whole grid. Since training is deterministic — same code, same config, same seed always produces bit-identical output — these were genuine independent re-runs of the same config landing in the same MLflow experiment, not a double-logging bug. The most likely cause was two `sweep.py` processes running concurrently: the first `nohup` invocation failed on a missing `logs/` directory, a second was launched while the first may have still been alive, and both walked the grid in the same order with a timing offset.
+
+This pattern is harmless for results but does mean the raw run count is meaningless on its own. The deduplication step resolves it by keeping only the most recent run per configuration.
+
+> The U-Net `N=2000` anomaly was a different problem. One of the duplicate runs for that cell showed `base_channels=32` and test error 0.504 — a value that matches the broken two-level U-Net from an early iteration, which had a receptive field of only 32 out of 256 input points and failed to learn anything. That run predated the architecture fix. The sweep skipped the configuration because the checkpoint file already existed, so no fresh run was ever made, and the stale broken run ended up being selected as the answer for one seed in that cell.
+>
+> The `n_params` audit is what makes this category of contamination reliably detectable: a 32-base-channel U-Net has a different parameter count from the 15-base-channel version, and a single-valued check on n_params per model catches it immediately. The stale run had 149641 parameters, same as the current model, which initially seemed reassuring. In fact it was coincidence — the 32-base-channel two-level architecture happened to have a similar parameter count. The timestamp-based check on `base_channels` in the `diagnose_duplicates` output was what actually identified it, and the lesson is that `n_params` alone is necessary but not sufficient: it catches count differences but not architectural changes that happen to be parameter-neutral.
+
+
+### What the curves measure and why the gap matters
+Each point on the error-versus-N curve represents the expected test relative L2 error for a model trained on N samples. Relative L2 error for a prediction `u_pred` against a ground truth `u_true` is the L2 norm of their difference divided by the L2 norm of `u_true`. This is the standard metric in operator learning because it normalizes for the scale of the function being predicted, making errors comparable across functions with different amplitudes.
+
 <img width="800" height="444" alt="image" src="https://github.com/user-attachments/assets/1fa04e29-0d03-4f75-8cea-6d4e0b64af4e" />
+
+Each cell in the grid involves five independent training runs with different random seeds, producing five error values. The seed controls both the model initialization and the batch shuffling order throughout training. Crucially, every seed at a given N trains on the same N samples — the first N rows of the training array. This means the variance bands measure optimization variance (sensitivity to initialization and batch ordering) rather than sampling variance (sensitivity to which N functions were drawn). This distinction matters for how the results are reported: the bands do not answer the question "how much would error vary if I drew a fresh N-sample dataset." They answer the question "how much does error vary across different random initializations and batch orders on this fixed dataset."
+
+The N values are nested subsets of one another: the 100-sample training set is the first 100 rows of the 250-sample set, which is the first 250 rows of the 500-sample set, and so on. This creates correlations across the points on each curve. Because both models see identical data at every N, the correlation structure is the same for both, and the ratio between the curves — which is what the multiplier measures — is largely protected from this effect. But the individual curves are smoother than they would be under independent data draws.
+
+The sample-complexity multiplier answers the question: at a fixed target error level, how many training samples does each model need to reach it? The ratio of those two N values is the multiplier. This is a horizontal reading of the error-versus-N plot — fixing a row (an error level) and asking at what column (an N value) each model's curve crosses it — as opposed to a vertical reading, which would fix a column and ask the error ratio at that N. The horizontal reading is the right one for a study about data efficiency, because the thesis is about data as the scarce resource. A horizontal reading is denominated in training samples, which is what the study is about.
+
+The local power law approximation underlying the interpolation assumes that within each adjacent pair of grid points, the relationship between error and N is approximately error equals A times N to the power negative alpha for some constant alpha. Empirically, alpha is not constant: for FNO it ranges from 0.73 at the N=100 to N=250 interval up to 0.85 at N=500 to N=1000, then declines to 0.66 at the high end. For U-Net it rises monotonically from 0.39 at the low end to 0.95 at N=1500 to N=2000. This non-constancy means two things. First, quoted N estimates from interpolation should carry limited precision — approximately 300 and approximately 1250. Second, the trend itself is interpretable: FNO's alpha is decelerating, suggesting it is approaching an error floor set by something other than data quantity, while U-Net's is accelerating, suggesting it is still in a regime where more data helps substantially.
+
+The mechanistic explanation for FNO's deceleration is worth discussing more precisely. Viscous Burgers at viscosity 0.01 on a unit domain develops near-shocks with thickness approximately 2 times viscosity divided by the velocity jump, roughly 0.02. Resolving a feature of that width requires Fourier wavenumbers up to approximately 50. The FNO's spectral truncation retains only the lowest 16 modes. This means the FNO structurally cannot represent the shock interior — the modes required to do so are zeroed before the inverse FFT. As N grows and data is no longer the binding constraint, this architectural limitation becomes the floor. The U-Net has no such floor — it can represent any continuous function given sufficient depth and width — so its error keeps declining as data accumulates, closing the gap at high N. This explains why the FNO advantage ratio peaks around N=1000 and narrows at both ends of the grid.
+
+> One test of this hypothesis requires no additional training: take the test ground-truth solutions, apply an `rfft`, zero all modes at index 16 and above, and apply an `irfft`. The resulting reconstruction error is the best possible error achievable by any model whose output lives in the span of the lowest 16 Fourier modes. If this projection error is close to the FNO's plateau at N=2000, it supports the truncation floor hypothesis. If it is substantially lower, the FNO's pointwise and nonlinear branches are contributing significantly to high-frequency reconstruction and the story is more complicated. 
+
+### Results
+
+* **Headline**: to reach 10% test relative L2 error, the matched-budget U-Net requires approximately 4.1 times the training data of the FNO. The 95% confidence interval from a 5-seed bootstrap is 3.9 to 4.3. This figure comes from interpolated crossing points of approximately N=300 for the FNO and approximately N=1250 for the U-Net, on a six-point grid of N in 100, 250, 500, 1000, 1500, 2000, five seeds each, 500 training epochs per run.
+
+<img width="800" height="572" alt="image" src="https://github.com/user-attachments/assets/fc7eafda-c773-447a-b827-eae80f74954a" />
+
+The multiplier is stable across target error levels. Evaluated at 20% it is approximately 4.2, at 10% it is 4.09, and at 7% it is approximately 3.9. 
+
+* The FNO has 139,745 parameters and the U-Net has 149,641 — the U-Net has 7% more parameters and still requires 4 times the data. Both parameter counts are reported as-is throughout, without rounding to a shared approximate value.
+
+|model|	N|	test mean|	test std|	train mean|	gap|
+|------|---|---------|---------|--------------|----|
+|fno	|100|	0.2304	|0.0131|	0.0311|	0.199|
+|fno|	250|	0.1183|	0.0078	|0.0227|	0.096|
+|fno|	500|	0.0669|	0.0042|	0.0163|	0.051|
+|fno|	1000|	0.0370|	0.0021|	0.0126|	0.024|
+|fno|	1500|	0.0278|	0.0020|	0.0115|	0.016|
+|fno	|2000|	0.0230	|0.0010|	0.0109|	0.012|
+|unet|	100|	0.3957|	0.0090|	0.0350|	0.361|
+|unet|	250	|0.3074	|0.0075|	0.0314|	0.276|
+|unet|	500|	0.2015|	0.0044|	0.0290|	0.172|
+|unet|	1000|	0.1241|	0.0068|	0.0259|	0.098|
+|unet|	1500|	0.0843	|0.0034|	0.0238|	0.060|
+|unet	|2000|	0.0656|	0.0046|	0.0224|	0.043|
+
+> At N=2000, FNO's train-to-test generalization gap is 0.012 and U-Net's is 0.043, a ratio of 3.6 on identical data at matched budget. This is the same inductive-bias result read along a different axis — not how much data each model needs but how well each model generalizes from the same amount of data. 
+
+* Both models fit their training data well at every N. Train error ranges from 0.011 to 0.035 across all cells. Neither model underfits anywhere, including at N=100. At the U-Net's crossing point near N=1500, train error is 0.0238 and test error is 0.0843. The model fits the training set fine and fails to generalize. That is data starvation, not budget starvation. This eliminates the concern that the sweep's fixed training budget was handicapping the U-Net rather than measuring its true data requirements.
+
+
+
 
 ---
 ## **References**
