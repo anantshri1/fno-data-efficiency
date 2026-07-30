@@ -178,23 +178,55 @@ Four architectural decisions were key here:
 
 The parameter budget target was approximately 139,745 to match the FNO. With the channel schedule `[C, 2C, 4C, 4C, 4C]` and five downsampling levels, the total parameter count scales roughly as 656 times C squared, and `C=15` gives approximately 150k, which is 7% above the FNO. The decision was to accept this and err on the side of giving the baseline more capacity rather than less. Both param counts (139,745 and 149,641) are reported explicitly and without rounding in all results. The FNO wins with fewer parameters, which strengthens rather than weakens the conclusion.
 
-<img width="800" height="644" alt="image" src="https://github.com/user-attachments/assets/226b2e7d-6c32-4b2a-a326-fcb8f10c9de8" />
+### Infrastructure
+The training script decision was to write a new `scripts/train_model.py` rather than modify the working script. `train_fno.py` remains untouched as a reference; `train_model.py` is structurally identical to it except that the model construction is routed through a `build_model` function that takes a `model_type` string and returns either an FNO or a UNet. Everything else, the data loading, normalisation using training statistics only, the staircase LR schedule, the MLflow logging, the per-epoch checkpoint cadence, is shared code. This matters for experimental integrity: any difference in results between the two models is attributable to the model, not to differing training conditions.
 
-U-net
+The CLI exposes 
+```bash
+--model (required, fno or unet), --n_train (optional, defaults to full 2000), and --seed (optional, overrides cfg.seed)
+```
+The convention `model_type_Nn_train_seedseed_final.eqx` for checkpoint names was established here for consistency, since the sweep script will check for checkpoint existence to decide whether to skip a run.
 
-### Results
+The results of the first run are shown below (`seed 0, N=2000, 500 epochs`):
 
-Verified baselines (seed 0, N=2000, 500 epochs)
 |Model	|Params|	Train rel-L2|	Test rel-L2|
 |------|------|----------------|---------------|
 |FNO	|139,745|	0.0109|	0.0224|
 |U-Net	|149,641|	0.0226	|0.0716|
 
-### CLI
+### Critical Bug with `ConvTranspose1d`
 
-```bash
-python -m scripts.train_model --model unet --n_train 2000 --seed 0
+The first version of the U-Net used `eqx.nn.ConvTranspose1d` for upsampling. After writing the full file and running diagnostics, the forward pass crashed with a concatenation error: arrays with shapes `(64, 64)` and `(64, 128)` cannot be concatenated along `axis 0`. The first array is the upsampled decoder output; the second is the encoder skip. The spatial dimensions do not match, which means the `ConvTranspose1d` did not actually double the length.
+
+The hypothesis was that `JAX`'s underlying `conv_transpose` operation has ambiguous padding semantics, and that `Equinox`'s integer padding argument maps to something that produces `L_out` equal to `L_in` rather than `2 x L_in`. This is a documented source of confusion: the JAX padding parameter for `conv_transpose` expects a string or a sequence of tuples describing the padding on both sides, and integer padding does not translate the way `Conv1d`'s integer padding does. Rather than debugging the padding arithmetic, the decision was to replace the `ConvTranspose` entirely with an explicit spatial resize followed by a learnable channel projection. `jnp.repeat(x, 2, axis=-1)` duplicates each spatial position: `[a, b, c]` becomes `[a, a, b, b, c, c]`, exactly doubling the length along the last axis. A `1x1` `Conv1d` then handles the channel reduction. This approach separates the two concerns, spatial resizing and channel mixing, which is arguably cleaner than `ConvTranspose` regardless of the padding issue. The dec convolution that follows then refines the features. This pattern, repeat then project then refine, is what the final architecture uses throughout the decoder.
+
+### Failure of the Receptive Field
+With the `ConvTranspose` bug fixed, the two-level U-Net passed all shape checks and produced finite output. The diagnostic check at `N=2000, 500 epochs` gave test `rel-L2` of `0.49` and a train loss of approximately `0.56`. These two numbers together are the diagnostic.
+
+A large train/test gap indicates overfitting or data scarcity: the model memorises training samples but does not generalise. The numbers here showed the opposite: train and test losses were nearly identical, both around 0.5. A 131k-parameter model that cannot overfit 2000 training samples is not learning. It is underfitting, meaning it does not have the capacity to represent the target function, regardless of how much data it is shown.
+
+The cause is the receptive field. Global receptive field is a **property of having enough downsampling layers**. The receptive field can be computed exactly using the recursion `RF_out equals RF_in plus (k minus 1) times jump_in`, where jump doubles at every stride-2 layer. For the two-level U-Net:
+
 ```
+enc0, k=3, stride=1, jump=1: RF = 3
+down0, k=2, stride=2, jump=1: RF = 4, jump becomes 2
+enc1, k=3, stride=1, jump=2: RF = 8
+down1, k=2, stride=2, jump=2: RF = 10, jump becomes 4
+enc2, k=3, stride=1, jump=4: RF = 18
+bottleneck, k=3, stride=1, jump=4: RF = 26
+dec1, k=3, stride=1: RF = 30
+dec0, k=3, stride=1: RF = 32
+```
+
+The receptive field of the final output is 32 pixels out of 256. This means each predicted output point depends on at most 32 input points, covering 12.5% of the domain.
+
+This is insufficient for two independent reasons:
+* First, the GRF initial conditions have `length_scale=0.2` on a unit periodic domain, meaning input features are spatially correlated over approximately `0.2 times 256 equals 51 pixels`. A model that can only see 32 pixels cannot fully resolve the input structure it is trying to learn from.
+* Second, Burgers' equation advects information: over `t_end=1.0` with `O(1)` velocities, characteristics travel significant fractions of the domain, meaning the value of `uT` at a point depends on `u0` over a window much wider than the immediate neighbourhood. 0.49 is the best achievable error for a model doing local-window regression on a problem with non-local dependencies.
+
+The fix is depth: five downsampling levels bring the resolution to 256/32 equals 8 at the bottleneck, and the receptive field calculation gives approximately 220 pixels, covering 86% of the domain. At this depth the architecture genuinely has global context. The channel schedule is adjusted to `[C, 2C, 4C, 4C, 4C]` because standard doubling to 16C at five levels would cost roughly 400k parameters, three times the FNO budget, which would make the comparison meaningless. Capping at 4C keeps the budget controlled while letting depth do the work. The constraint that nx must be divisible by 32 holds for all three resolutions in the dataset: 256, 512, and 1024.
+
+The corrected architecture trained to 0.0716 at N=2000, with train at 0.023. **The U-Net is overfitting more at the same data volume, and the FNO's frequency-domain inductive bias acts as an implicit regulariser at matched budget.**
 
 ---
 ## Benchmarking FNO and U-Net performance
